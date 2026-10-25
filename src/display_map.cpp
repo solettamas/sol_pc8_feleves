@@ -27,7 +27,18 @@ public:
         message_.info.origin.position.y = 0.0;
         message_.info.origin.position.z = 0.0;
         message_.info.origin.orientation.w = 1.0;
-        message_.data.resize(message_.info.width * message_.info.height, 0);
+        message_.data.assign(width_ * height_, 0);
+
+        // Példa akadályok
+        drawObstacle(0, height_ - 1, width_ - 1, height_ - 1); // Felső sor
+        drawObstacle(0, 0, width_ - 1, 0);                     // Alsó sor
+        drawObstacle(0, 0, 0, height_ - 1);                    // Bal oldal
+        drawObstacle(width_ - 1, 0, width_ - 1, height_ - 1);  // Jobb oldal
+
+        drawObstacle(20, 20, 80, 25);
+        drawObstacle(15, 40, 65, 50);
+        drawObstacle(75, 35, 85, 90);
+        drawObstacle(10, 60, 50, 90);
 
         // QoS beállítások
         rclcpp::QoS qos(1);
@@ -42,6 +53,21 @@ public:
     }
 
 private:
+    void drawObstacle(int x1, int y1, int x2, int y2)
+    {
+        for (int row = y1; row <= y2; row++)
+        {
+            for (int col = x1; col <= x2; col++)
+            {
+                if (row >= 0 && row < height_ && col >= 0 && col < width_)
+                {
+                    // Konvertálás indexre
+                    int index = (row * width_) + col;
+                    message_.data[index] = 100;
+                }
+            }
+        }
+    }
     int width_;
     int height_;
 
