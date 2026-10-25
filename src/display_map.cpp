@@ -14,10 +14,15 @@ class DisplayMap : public rclcpp::Node
 public:
     DisplayMap() : Node("display_map"), count_(0)
     {
+        this->declare_parameter("width", 100);
+        this->declare_parameter("height", 100);
+        width_ = this->get_parameter("width").as_int();
+        height_ = this->get_parameter("height").as_int();
+
         message_.header.frame_id = "map";
         message_.info.resolution = 0.1;
-        message_.info.width = 100;
-        message_.info.height = 100;
+        message_.info.width = width_;
+        message_.info.height = height_;
         message_.info.origin.position.x = 0.0;
         message_.info.origin.position.y = 0.0;
         message_.info.origin.position.z = 0.0;
@@ -37,6 +42,9 @@ public:
     }
 
 private:
+    int width_;
+    int height_;
+
     nav_msgs::msg::OccupancyGrid message_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr publisher_;
     size_t count_;
