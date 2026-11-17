@@ -4,6 +4,7 @@
 #include "nav_msgs/msg/occupancy_grid.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
+#include "rrt_planner.cpp"
 
 class BenchmarkNode : public rclcpp::Node
 {
@@ -48,7 +49,6 @@ private:
     is_finished_ = false;
 
     RCLCPP_INFO(this->get_logger(), "Goal set to (%.2f, %.2f).", goal_x_, goal_y_);
-
   }
 
   void timerCallback()
@@ -58,15 +58,22 @@ private:
       // Várakozás a térképre
       return;
     }
+
     if (!has_goal_)
     {
-      // Várakozás a célpontra
       return;
     }
+    // Van célpont
+
+    rrt_ = RRTPlanner();
+    rrt_.setMap(map_);
+    rrt_.Initialize({start_x_, start_y_}, {goal_x_, goal_y_});
+
+
     if (!is_finished_)
     {
-      //is_finished_ = !rrt_->planStep();
-      //marker_pub_->publish(rrt_->getVisualizationMarkers());
+      is_finished_ = rrt_.planstep();
+      // marker_pub_->publish(rrt_.getVisualizationMarkers());
       return;
     }
   }
@@ -79,7 +86,7 @@ private:
   bool is_finished_ = false;
 
   nav_msgs::msg::OccupancyGrid::SharedPtr map_;
-  //std::shared_ptr<RRT> rrt_;
+  RRTPlanner rrt_;
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
