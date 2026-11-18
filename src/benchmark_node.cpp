@@ -9,7 +9,7 @@
 class BenchmarkNode : public rclcpp::Node
 {
 public:
-  BenchmarkNode() : Node("benchmark_node")
+  BenchmarkNode() : Node("benchmark_node"), rrt_(this->get_clock())
   {
     this->declare_parameter<double>("start_x_", 1.0);
     this->declare_parameter<double>("start_y_", 1.0);
@@ -38,6 +38,8 @@ private:
   void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
   {
     map_ = msg;
+    planner_initialized_ = false;
+    is_finished_ = false;
     RCLCPP_INFO(this->get_logger(), "Map received!");
   }
 
@@ -47,35 +49,31 @@ private:
     goal_y_ = msg->pose.position.y;
     has_goal_ = true;
     is_finished_ = false;
+    planner_initialized_ = false;
 
     RCLCPP_INFO(this->get_logger(), "Goal set to (%.2f, %.2f).", goal_x_, goal_y_);
   }
 
   void timerCallback()
   {
-    if (!map_)
+  if (!map_ || !has_goal_) {
+    return;  //  Várakozás a térképre és a célpontra
+  }
+
+    if (!planner_initialized_)
     {
-      // Várakozás a térképre
+      rrt_.setMap(map_);
+      rrt_.Initialize({start_x_, start_y_}, {goal_x_, goal_y_});
+      planner_initialized_ = true;
+    }
+
+    if (is_finished_)
+    {
       return;
     }
 
-    if (!has_goal_)
-    {
-      return;
-    }
-    // Van célpont
-
-    rrt_ = RRTPlanner();
-    rrt_.setMap(map_);
-    rrt_.Initialize({start_x_, start_y_}, {goal_x_, goal_y_});
-
-
-    if (!is_finished_)
-    {
-      is_finished_ = rrt_.planstep();
-      // marker_pub_->publish(rrt_.getVisualizationMarkers());
-      return;
-    }
+    is_finished_ = rrt_.planstep();
+    marker_pub_->publish(rrt_.getVisualizationMarkers());
   }
 
   double start_x_ = 1.0;
@@ -84,6 +82,7 @@ private:
   double goal_y_ = 0.0;
   bool has_goal_ = false;
   bool is_finished_ = false;
+  bool planner_initialized_ = false;
 
   nav_msgs::msg::OccupancyGrid::SharedPtr map_;
   RRTPlanner rrt_;
@@ -93,3 +92,11 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_pub_;
   rclcpp::TimerBase::SharedPtr timer_;
 };
+
+int main(int argc, char *argv[])
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<BenchmarkNode>());
+  rclcpp::shutdown();
+  return 0;
+}

@@ -1,7 +1,9 @@
 #include <vector>
 #include <random>
 #include <algorithm>
+#include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/occupancy_grid.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 using namespace std;
 
@@ -20,7 +22,7 @@ struct Node
 class RRTPlanner
 {
 public:
-    RRTPlanner() : rng_(random_device{}()) {}
+    RRTPlanner(rclcpp::Clock::SharedPtr clock) : rng_(random_device{}()), clock_(clock) {}
 
     bool planstep()
     {
@@ -36,7 +38,7 @@ public:
         int best_idx = 0;
         double best_dist = numeric_limits<double>::max();
 
-        for (auto i = 0; i < nodes_.size(); i++)
+        for (size_t i = 0; i < nodes_.size(); i++)
         {
             double d = hypot(nodes_[i].position.x - sample.x,
                              nodes_[i].position.y - sample.y);
@@ -91,6 +93,78 @@ public:
         }
 
         return false;
+    }
+
+    visualization_msgs::msg::MarkerArray getVisualizationMarkers() const
+    {
+        visualization_msgs::msg::MarkerArray markers;
+
+        // Keresési fa
+        {
+            visualization_msgs::msg::Marker m;
+            m.header.frame_id = "map";
+            m.header.stamp = clock_->now();
+            m.ns = "rrt_search";
+            m.id = 0;
+            m.type = visualization_msgs::msg::Marker::LINE_LIST;
+            m.action = visualization_msgs::msg::Marker::ADD;
+            m.scale.x = 0.02; // Vonal szélessége
+            m.color.r = 1.0f;
+            m.color.g = 0.2f;
+            m.color.b = 0.2f;
+            m.color.a = 0.8f;
+            m.pose.orientation.w = 1.0;
+
+            for (size_t i = 1; i < nodes_.size(); ++i)
+            {
+                const Node child = nodes_[i];
+                const Node parent = nodes_[static_cast<size_t>(child.parent)];
+
+                geometry_msgs::msg::Point p1;
+                p1.x = parent.position.x;
+                p1.y = parent.position.y;
+                p1.z = 0.01;
+
+                geometry_msgs::msg::Point p2;
+                p2.x = child.position.x;
+                p2.y = child.position.y;
+                p2.z = 0.01;
+
+                m.points.push_back(p1);
+                m.points.push_back(p2);
+            }
+            markers.markers.push_back(m);
+        }
+
+        // Végső útvonal
+        if (!final_path_.empty())
+        {
+            visualization_msgs::msg::Marker m;
+            m.header.frame_id = "map";
+            m.header.stamp = clock_->now();
+            m.ns = "rrt_path";
+            m.id = 0;
+            m.type = visualization_msgs::msg::Marker::LINE_STRIP;
+            m.action = visualization_msgs::msg::Marker::ADD;
+            m.scale.x = 0.08;
+            m.color.r = 1.0f;
+            m.color.g = 0.2f;
+            m.color.b = 0.8f;
+            m.color.a = 1.0f;
+            m.pose.orientation.w = 1.0;
+
+            for (const auto &wp : final_path_)
+            {
+                geometry_msgs::msg::Point pt;
+                pt.x = wp.x;
+                pt.y = wp.y;
+                pt.z = 0.05;
+                m.points.push_back(pt);
+            }
+            markers.markers.push_back(m);
+        }
+
+        return markers;
     }
 
     void setMap(nav_msgs::msg::OccupancyGrid::SharedPtr map)
@@ -192,4 +266,5 @@ private:
     Point start_ = {1, 1};
     Point goal_ = {10.0, 10.0};
     mt19937 rng_;
+    rclcpp::Clock::SharedPtr clock_;
 };

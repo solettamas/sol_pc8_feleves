@@ -15,16 +15,21 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 set(ament_dependencies
   rclcpp
   std_msgs
   geometry_msgs
   nav_msgs
+  visualization_msgs
 )
 
 add_executable(display_map src/display_map.cpp)
 ament_target_dependencies(display_map ${ament_dependencies})
+
+add_executable(benchmark_node src/benchmark_node.cpp)
+ament_target_dependencies(benchmark_node ${ament_dependencies})
 
 
 target_link_libraries(display_map "${cpp_typesupport_target}")
@@ -37,6 +42,7 @@ install(DIRECTORY launch
 
 install(TARGETS
 display_map
+benchmark_node
 DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
